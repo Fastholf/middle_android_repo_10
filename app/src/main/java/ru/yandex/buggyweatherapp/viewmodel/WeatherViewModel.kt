@@ -35,6 +35,9 @@ import java.util.TimerTask
  * 6. ViewModel сохранял Activity's Context. При этом пока ViewModel создавался прямо внутри Activity
  * это не было большой проблемой. Но мы переделали это на хранение в ViewModel Store и Activity Context
  * начал утекать. Исправлено использованием Application Context.
+ * 7. Таймер автообновления продолжал работать после очистки ViewModel, поэтому при повторном 
+ * открытии экрана могли работать два таймера. Исправлено отменой текущего таймера в onCleared() 
+ * и перед созданием нового.
  * */
 class WeatherViewModel(private val application: Application) : ViewModel() {
     private val weatherRepository = WeatherRepository()
@@ -161,6 +164,7 @@ class WeatherViewModel(private val application: Application) : ViewModel() {
     
     
     private fun startAutoRefresh() {
+        refreshTimer?.cancel()
         refreshTimer = Timer()
         refreshTimer?.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
@@ -189,6 +193,6 @@ class WeatherViewModel(private val application: Application) : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        
+        refreshTimer?.cancel()
     }
 }
