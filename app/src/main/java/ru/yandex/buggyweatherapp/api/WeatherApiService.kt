@@ -5,12 +5,17 @@ import retrofit2.Call
 import retrofit2.http.GET
 import retrofit2.http.Query
 
+/**
+ * Исправлено:
+ * 1. Запросы к OpenWeather передавали API-ключ и координаты по HTTP.
+ * Исправлено переходом на HTTPS и отключением незашифрованного трафика в манифесте.
+ */
 interface WeatherApiService {
     
     
     companion object {
         const val API_KEY = "8fd9a0f2216e2bc16a09102e2af8ab1d"
-        const val BASE_URL = "http://api.openweathermap.org/data/2.5/"
+        const val BASE_URL = "https://api.openweathermap.org/data/2.5/"
     }
     
     
