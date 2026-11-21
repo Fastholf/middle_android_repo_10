@@ -124,18 +124,16 @@ class WeatherViewModel(private val application: Application) : ViewModel() {
         error.value = null
 
         weatherRepository.getWeatherData(location) { data, exception ->
-            Handler(Looper.getMainLooper()).post {
-                if (requestId != currentRequestId) return@post
-                isLoading.value = false
-                
-                if (data != null) {
-                    weatherData.value = data
-                    cityName.value = location.name.orEmpty()
-                } else {
-                    error.value = exception?.message ?: "Unknown error"
-                }
-                currentRequestId = null
+            if (requestId != currentRequestId) return@getWeatherData
+            isLoading.value = false
+
+            if (data != null) {
+                weatherData.value = data
+                cityName.value = location.name.orEmpty()
+            } else {
+                error.value = exception?.message ?: "Unknown error"
             }
+            currentRequestId = null
         }
     }
     
