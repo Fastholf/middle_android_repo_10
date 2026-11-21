@@ -2,22 +2,34 @@ package ru.yandex.buggyweatherapp.repository
 
 import android.content.Context
 import android.location.Geocoder
-import android.os.Looper
 import android.util.Log
+import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationCallback
-import com.google.android.gms.location.LocationRequest
-import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import ru.yandex.buggyweatherapp.model.Location
 import ru.yandex.buggyweatherapp.utils.LocationTracker
 import java.util.Locale
+import java.util.concurrent.Executors
 
+/** 
+ * Исправлено:
+ * 1. getCityNameFromLocation вызывался на UI потоке и вызывал потенциально блокирующую операцию
+ * Geocoder.getFromLocation() на нём. Исправлено переносом вызова на фоновый поток.
+ * 2. getCurrentLocation не отменял подписку на обновления локации, после первого успеха, что могло
+ * привести к нескольким загрузкам или зависанию. Согласно рекомендациям от Google такой подход стоит
+ * использовать только если он реально нужен, а здесь нам нужен просто одноразовый запрос:
+ * https://developer.android.com/develop/sensors-and-location/location/retrieve-current?hl=en#BestEstimate
+ * Исправлено использованием CurrentLocationRequest с конкретными параметрами для проверки кэша и 
+ * запроса нового результата.
+ */
 class LocationRepository(
     
     private val context: Context
 ) {
+    companion object {
+        private val geocoderExecutor = Executors.newSingleThreadExecutor()
+    }
     
     private val fusedLocationClient: FusedLocationProviderClient = 
         LocationServices.getFusedLocationProviderClient(context)
@@ -26,97 +38,64 @@ class LocationRepository(
     private var currentLocation: Location? = null
     
     
-    private var locationCallback: ((Location?) -> Unit)? = null
-    
-    
     fun getCurrentLocation(callback: (Location?) -> Unit) {
-        try {
-            locationCallback = callback
-            
-            
-            fusedLocationClient.lastLocation
-                .addOnSuccessListener { location ->
-                    if (location != null) {
-                        val userLocation = Location(
-                            latitude = location.latitude,
-                            longitude = location.longitude
-                        )
-                        currentLocation = userLocation
-                        callback(userLocation)
-                    } else {
-                        
-                        requestLocationUpdates(callback)
-                    }
-                }
-                .addOnFailureListener { e ->
-                    Log.e("LocationRepository", "Error getting location", e)
-                    callback(null)
-                }
+        val request = CurrentLocationRequest.Builder()
+            .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
+            .setMaxUpdateAgeMillis(30_000L)
+            .setDurationMillis(20_000L)
+            .build()
+
+        val task = try {
+            fusedLocationClient.getCurrentLocation(request, null)
         } catch (e: SecurityException) {
             Log.e("LocationRepository", "Location permission not granted", e)
             callback(null)
+            return
         }
-    }
-    
-    
-    private fun requestLocationUpdates(callback: (Location?) -> Unit) {
-        try {
-            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000)
-                .setWaitForAccurateLocation(false)
-                .setMinUpdateIntervalMillis(5000)
-                .build()
-            
-            val locationCallback = object : LocationCallback() {
-                override fun onLocationResult(locationResult: LocationResult) {
-                    locationResult.lastLocation?.let { location ->
-                        val userLocation = Location(
-                            latitude = location.latitude,
-                            longitude = location.longitude
-                        )
-                        currentLocation = userLocation
-                        callback(userLocation)
-                        
-                        
-                    }
-                }
-            }
-            
-            
-            fusedLocationClient.requestLocationUpdates(
-                locationRequest,
-                locationCallback,
-                Looper.getMainLooper()
-            )
-        } catch (e: SecurityException) {
-            Log.e("LocationRepository", "Location permission not granted", e)
-            callback(null)
-        }
-    }
-    
-    
-    fun getCityNameFromLocation(location: Location): String? {
-        try {
-            
-            val geocoder = Geocoder(context, Locale.getDefault())
-            
-            @Suppress("DEPRECATION")
-            val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
-            
-            return if (!addresses.isNullOrEmpty()) {
-                val address = addresses[0]
-                if (address.locality != null) {
-                    address.locality
-                } else if (address.subAdminArea != null) {
-                    address.subAdminArea
-                } else {
-                    address.adminArea
+
+        task.addOnCompleteListener { completed ->
+            val location = if (completed.isSuccessful) {
+                completed.result?.let {
+                    Location(latitude = it.latitude, longitude = it.longitude)
                 }
             } else {
+                completed.exception?.let {
+                    Log.e("LocationRepository", "Error getting current location", it)
+                }
                 null
             }
-        } catch (e: Exception) {
-            Log.e("LocationRepository", "Error getting city name", e)
-            return null
+
+            callback(location)
+        }
+    }
+    
+    
+    fun getCityNameFromLocation(location: Location, onResult: (String?) -> Unit) {
+        geocoderExecutor.execute {
+            val name = try {
+
+                val geocoder = Geocoder(context, Locale.getDefault())
+
+                @Suppress("DEPRECATION")
+                val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+
+                if (!addresses.isNullOrEmpty()) {
+                    val address = addresses[0]
+                    if (address.locality != null) {
+                        address.locality
+                    } else if (address.subAdminArea != null) {
+                        address.subAdminArea
+                    } else {
+                        address.adminArea
+                    }
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                Log.e("LocationRepository", "Error getting city name", e)
+                null
+            }
+            onResult(name)
         }
     }
     

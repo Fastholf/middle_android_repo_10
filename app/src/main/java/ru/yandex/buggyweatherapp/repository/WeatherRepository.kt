@@ -1,16 +1,26 @@
 package ru.yandex.buggyweatherapp.repository
 
 import android.util.Log
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
-import org.json.JSONObject
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import ru.yandex.buggyweatherapp.api.RetrofitInstance
 import ru.yandex.buggyweatherapp.model.Location
 import ru.yandex.buggyweatherapp.model.WeatherData
-import java.util.Date
 
+/** 
+ * Исправлено:
+ * 1. getWeatherData вызывал Call.execute() на главном потоке, что могло приводить к NetworkOnMainThreadException,
+ * исправлено использованием Call.enqueue().
+ * 2. "temp_min" и "temp_max" являются необязательными в протоколе. Код не учитывал этот нюанс и 
+ * погода бы не отобразилась, если бы эти значения не пришли в ответе. Исправлено обработкой значений как
+ * nullable и корректной обработкой их в UI.
+ * 3. Разбор ответа завершался ошибкой без feels_like или timezone, а также при явном
+ * JSON null в этих полях или в temp_min и temp_max. Такие значения сохраняются
+ * как null, чтобы карточка могла показать остальные данные.
+ *  */
 class WeatherRepository {
     
     
@@ -23,25 +33,26 @@ class WeatherRepository {
     fun getWeatherData(location: Location, callback: (WeatherData?, Exception?) -> Unit) {
         
         val call = weatherApi.getCurrentWeather(location.latitude, location.longitude)
-        
-        
-        try {
-            
-            val response = call.execute()
-            
-            if (response.isSuccessful) {
-                val weatherData = parseWeatherData(response.body()!!, location)
-                cachedWeatherData = weatherData
-                callback(weatherData, null)
-            } else {
-                
-                callback(null, Exception("API Error: ${response.code()}"))
+        call.enqueue(object : Callback<JsonObject> {
+            override fun onResponse(call: Call<JsonObject>, response: Response<JsonObject>) {
+                if (response.isSuccessful) {
+                    try {
+                        val weatherData = parseWeatherData(response.body()!!, location)
+                        cachedWeatherData = weatherData
+                        callback(weatherData, null)
+                    } catch (e: Exception) {
+                        Log.e("WeatherRepository", "Error fetching weather", e)
+                        callback(null, e)
+                    }
+                } else {
+                    callback(null, Exception("API Error: ${response.code()}"))
+                }
             }
-        } catch (e: Exception) {
-            
-            Log.e("WeatherRepository", "Error fetching weather", e)
-            callback(null, e)
-        }
+
+            override fun onFailure(call: Call<JsonObject>, t: Throwable) {
+                callback(null, Exception(t))
+            }
+        })
     }
     
     fun getWeatherByCity(cityName: String, callback: (WeatherData?, Exception?) -> Unit) {
@@ -76,14 +87,17 @@ class WeatherRepository {
         val sys = json.getAsJsonObject("sys")
         val weather = json.getAsJsonArray("weather").get(0).asJsonObject
         val clouds = json.getAsJsonObject("clouds")
-        
+
+        fun JsonObject.getOrNull(memberName: String): JsonElement? {
+            return get(memberName)?.takeUnless { it.isJsonNull }
+        }
         return WeatherData(
             cityName = json.get("name").asString,
             country = sys.get("country").asString,
             temperature = main.get("temp").asDouble,
-            feelsLike = main.get("feels_like").asDouble,
-            minTemp = main.get("temp_min").asDouble,
-            maxTemp = main.get("temp_max").asDouble,
+            feelsLike = main.getOrNull("feels_like")?.asDouble,
+            minTemp = main.getOrNull("temp_min")?.asDouble,
+            maxTemp = main.getOrNull("temp_max")?.asDouble,
             humidity = main.get("humidity").asInt,
             pressure = main.get("pressure").asInt,
             windSpeed = wind.get("speed").asDouble,
@@ -93,13 +107,14 @@ class WeatherRepository {
             cloudiness = clouds.get("all").asInt,
             sunriseTime = sys.get("sunrise").asLong,
             sunsetTime = sys.get("sunset").asLong,
-            timezone = json.get("timezone").asInt,
+            timezone = json.getOrNull("timezone")?.asInt,
             timestamp = json.get("dt").asLong,
             rawApiData = json.toString(),
             rain = if (json.has("rain") && json.getAsJsonObject("rain").has("1h")) 
                     json.getAsJsonObject("rain").get("1h").asDouble else null,
             snow = if (json.has("snow") && json.getAsJsonObject("snow").has("1h"))
-                    json.getAsJsonObject("snow").get("1h").asDouble else null
+                    json.getAsJsonObject("snow").get("1h").asDouble else null,
+            location = location
         )
     }
     

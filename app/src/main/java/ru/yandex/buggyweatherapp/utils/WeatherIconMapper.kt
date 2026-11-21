@@ -3,13 +3,20 @@ package ru.yandex.buggyweatherapp.utils
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.SimpleTimeZone
 
+/**
+ * Исправлено:
+ * 1. Время восхода и заката отображалось в часовом поясе устройства.
+ * Исправлено применением смещения от UTC из ответа OpenWeather.
+ */
 object WeatherIconMapper {
     
     
-    fun formatTimestamp(timestamp: Long): String {
-        val date = Date(timestamp * 1000)
+    fun formatTimestamp(timestamp: Long, timezoneOffsetSeconds: Int): String {
+        val date = Date(timestamp * 1_000)
         val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+        sdf.timeZone = SimpleTimeZone(timezoneOffsetSeconds * 1_000, "OpenWeather")
         return sdf.format(date)
     }
     

@@ -4,9 +4,9 @@ data class WeatherData(
     val cityName: String,
     val country: String,
     val temperature: Double,
-    val feelsLike: Double,
-    val minTemp: Double,
-    val maxTemp: Double,
+    val feelsLike: Double?,
+    val minTemp: Double?,
+    val maxTemp: Double?,
     val humidity: Int,
     val pressure: Int,
     val windSpeed: Double,
@@ -18,13 +18,12 @@ data class WeatherData(
     val cloudiness: Int,
     val sunriseTime: Long,
     val sunsetTime: Long,
-    val timezone: Int,
+    val timezone: Int?,
     val timestamp: Long,
-    
+    val location: Location,
     
     val rawApiData: String,
     
     
-    var isFavorite: Boolean = false,
-    var isSelected: Boolean = false
+    val isFavorite: Boolean = false,
 )
