@@ -46,11 +46,14 @@ class WeatherViewModel : ViewModel() {
     private val coroutineScope = CoroutineScope(Dispatchers.Main + Job())
     private val mainHandler = Handler(Looper.getMainLooper())
     
+    private var hasLocationPermission = false
+    
     private var refreshTimer: Timer? = null
     
     
-    fun initialize(context: Context) {
+    fun initialize(context: Context, locationPermission: Boolean) {
         this.activityContext = context
+        hasLocationPermission = locationPermission
         fetchCurrentLocationWeather()
         
         
@@ -59,6 +62,7 @@ class WeatherViewModel : ViewModel() {
     
     
     fun fetchCurrentLocationWeather() {
+        if (!hasLocationPermission) return
         isLoading.value = true
         error.value = null
         

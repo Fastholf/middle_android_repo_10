@@ -20,6 +20,11 @@ import ru.yandex.buggyweatherapp.ui.screens.WeatherScreen
 import ru.yandex.buggyweatherapp.ui.theme.BuggyWeatherAppTheme
 import ru.yandex.buggyweatherapp.viewmodel.WeatherViewModel
 
+/**
+ * Исправлено:
+ * 1. Результат разрешения на запрос локации никак не обрабатывался, запрос локации мог произойти
+ * до результата и без разрешения. Исправлено переносом инициализации ViewModel в колбэк запроса.
+ * */
 class MainActivity : ComponentActivity() {
     
     private val weatherViewModel = WeatherViewModel()
@@ -29,13 +34,13 @@ class MainActivity : ComponentActivity() {
     ) { permissions ->
         when {
             permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true -> {
-                
+                weatherViewModel.initialize(application, true)
             }
             permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true -> {
-                
+                weatherViewModel.initialize(application, true)
             }
             else -> {
-                
+                weatherViewModel.initialize(application, false)
             }
         }
     }
@@ -60,6 +65,8 @@ class MainActivity : ComponentActivity() {
                     Manifest.permission.ACCESS_COARSE_LOCATION
                 )
             )
+        } else {
+            weatherViewModel.initialize(application, true)
         }
         
         enableEdgeToEdge()
