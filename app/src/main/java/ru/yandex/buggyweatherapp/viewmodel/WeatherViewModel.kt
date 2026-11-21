@@ -4,6 +4,7 @@ import android.app.Application
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -49,6 +50,8 @@ import java.util.TimerTask
  * ID запроса, поэтому поздние ответы геокодера и сервера игнорируются.
  * 12. scheduleAtFixedRate() мог запускать пропущенные тики подряд после паузы процесса.
  * Используется schedule() с фиксированной задержкой между запусками.
+ * 13. Экран мог напрямую менять состояние через MutableLiveData. Теперь он получает LiveData,
+ * а запись в состояние и вызов метода с ID запроса остаются внутри ViewModel.
  * */
 class WeatherViewModel(private val application: Application) : ViewModel() {
     private val weatherRepository = WeatherRepository()
@@ -57,11 +60,16 @@ class WeatherViewModel(private val application: Application) : ViewModel() {
     }
     
     
-    val weatherData = MutableLiveData<WeatherData?>()
-    val currentLocation = MutableLiveData<Location?>()
-    val isLoading = MutableLiveData<Boolean>()
-    val error = MutableLiveData<String?>()
-    val cityName = MutableLiveData<String>()
+    private val _weatherData = MutableLiveData<WeatherData?>()
+    private val currentLocation = MutableLiveData<Location?>()
+    private val _isLoading = MutableLiveData<Boolean>()
+    private val _error = MutableLiveData<String?>()
+    private val _cityName = MutableLiveData<String>()
+
+    val weatherData: LiveData<WeatherData?> = _weatherData
+    val isLoading: LiveData<Boolean> = _isLoading
+    val error: LiveData<String?> = _error
+    val cityName: LiveData<String> = _cityName
     
     
     private val coroutineScope = CoroutineScope(Dispatchers.Main + Job())
@@ -84,8 +92,8 @@ class WeatherViewModel(private val application: Application) : ViewModel() {
     
     fun fetchCurrentLocationWeather() {
         if (!hasLocationPermission) return
-        isLoading.value = true
-        error.value = null
+        _isLoading.value = true
+        _error.value = null
 
         val id = nextRequestId++
         currentRequestId = id
@@ -104,8 +112,8 @@ class WeatherViewModel(private val application: Application) : ViewModel() {
                     }
                 }
             } else {
-                isLoading.value = false
-                error.value = "Unable to get current location"
+                _isLoading.value = false
+                _error.value = "Unable to get current location"
                 currentRequestId = null
             }
         }
@@ -119,19 +127,19 @@ class WeatherViewModel(private val application: Application) : ViewModel() {
         getWeatherForLocation(location, id)
     }
 
-    fun getWeatherForLocation(location: Location, requestId: Int) {
-        isLoading.value = true
-        error.value = null
+    private fun getWeatherForLocation(location: Location, requestId: Int) {
+        _isLoading.value = true
+        _error.value = null
 
         weatherRepository.getWeatherData(location) { data, exception ->
             if (requestId != currentRequestId) return@getWeatherData
-            isLoading.value = false
+            _isLoading.value = false
 
             if (data != null) {
-                weatherData.value = data
-                cityName.value = location.name.orEmpty()
+                _weatherData.value = data
+                _cityName.value = location.name.orEmpty()
             } else {
-                error.value = exception?.message ?: "Unknown error"
+                _error.value = exception?.message ?: "Unknown error"
             }
             currentRequestId = null
         }
@@ -139,25 +147,25 @@ class WeatherViewModel(private val application: Application) : ViewModel() {
     
     fun searchWeatherByCity(city: String) {
         if (city.isBlank()) {
-            error.value = "City name cannot be empty"
+            _error.value = "City name cannot be empty"
             return
         }
         
-        isLoading.value = true
-        error.value = null
+        _isLoading.value = true
+        _error.value = null
 
         val id = nextRequestId++
         currentRequestId = id
         weatherRepository.getWeatherByCity(city) { data, exception ->
             if (id != currentRequestId) return@getWeatherByCity
-            isLoading.value = false
+            _isLoading.value = false
             
             if (data != null) {
-                weatherData.value = data
-                cityName.value = data.cityName
+                _weatherData.value = data
+                _cityName.value = data.cityName
                 currentLocation.value = data.location
             } else {
-                error.value = exception?.message ?: "Unknown error"
+                _error.value = exception?.message ?: "Unknown error"
             }
             currentRequestId = null
         }
@@ -205,7 +213,7 @@ class WeatherViewModel(private val application: Application) : ViewModel() {
     
     fun toggleFavorite() {
         weatherData.value?.let {
-            weatherData.value = it.copy(isFavorite = !it.isFavorite)
+            _weatherData.value = it.copy(isFavorite = !it.isFavorite)
         }
     }
     
