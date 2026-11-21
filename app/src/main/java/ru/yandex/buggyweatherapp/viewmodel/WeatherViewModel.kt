@@ -42,6 +42,8 @@ import java.util.TimerTask
  * менялось его изменяемоу содержимое. Исправлено изменение поля на val и публикацией копии объекта.
  * 9. Ручное обновление запрашивало геолокацию и могло переключить карточку на другой город.
  * Исправлено обновлением по координатам открытой карточки. Для геолокации добавлена отдельная кнопка.
+ * 10. Типы LiveData не согласуются с тем, как они используются. Исправлено указание nullable там, где
+ * LiveData используется как nullable
  * */
 class WeatherViewModel(private val application: Application) : ViewModel() {
     private val weatherRepository = WeatherRepository()
@@ -50,10 +52,10 @@ class WeatherViewModel(private val application: Application) : ViewModel() {
     }
     
     
-    val weatherData = MutableLiveData<WeatherData>()
-    val currentLocation = MutableLiveData<Location>()
+    val weatherData = MutableLiveData<WeatherData?>()
+    val currentLocation = MutableLiveData<Location?>()
     val isLoading = MutableLiveData<Boolean>()
-    val error = MutableLiveData<String>()
+    val error = MutableLiveData<String?>()
     val cityName = MutableLiveData<String>()
     
     
