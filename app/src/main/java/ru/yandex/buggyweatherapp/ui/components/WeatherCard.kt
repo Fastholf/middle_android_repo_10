@@ -114,10 +114,10 @@ fun DetailedWeatherCard(weather: WeatherData) {
                     WeatherDataRow("Wind", weather.windSpeed.toString() + " m/s")
                 }
                 item {
-                    WeatherDataRow("Sunrise", WeatherIconMapper.formatTimestamp(weather.sunriseTime))
+                    WeatherDataRow("Sunrise", WeatherIconMapper.formatTimestamp(weather.sunriseTime, weather.timezone))
                 }
                 item {
-                    WeatherDataRow("Sunset", WeatherIconMapper.formatTimestamp(weather.sunsetTime))
+                    WeatherDataRow("Sunset", WeatherIconMapper.formatTimestamp(weather.sunsetTime, weather.timezone))
                 }
             }
         }

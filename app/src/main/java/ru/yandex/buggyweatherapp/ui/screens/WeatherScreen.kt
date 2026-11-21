@@ -180,12 +180,12 @@ fun WeatherCard(
             ) {
                 
                 Text(
-                    text = "Sunrise: " + WeatherIconMapper.formatTimestamp(weather.sunriseTime),
+                    text = "Sunrise: " + WeatherIconMapper.formatTimestamp(weather.sunriseTime, weather.timezone),
                     style = MaterialTheme.typography.bodySmall
                 )
                 
                 Text(
-                    text = "Sunset: " + WeatherIconMapper.formatTimestamp(weather.sunsetTime),
+                    text = "Sunset: " + WeatherIconMapper.formatTimestamp(weather.sunsetTime, weather.timezone),
                     style = MaterialTheme.typography.bodySmall
                 )
             }
