@@ -26,6 +26,8 @@ import java.util.TimerTask
  * 2. Запись напрямую String? в cityName: MutableLiveData<String>() могло привести к NPE в Compose.
  * Исправлено записью пустой строки, вместо null - Compose в текущей реализации нормально обрабатывает
  * пустую строку.
+ * 3. Были возможны одновременные запросы, в результате чего результат более нового запроса мог быть
+ * отменён запоздавшим результатом более старого. Исправлено введением айдишника для текущещего запроса.
  * */
 class WeatherViewModel : ViewModel() {
     
@@ -53,6 +55,9 @@ class WeatherViewModel : ViewModel() {
     
     private var refreshTimer: Timer? = null
     
+    @Volatile
+    private var currentRequestId: Int? = null
+    private var nextRequestId = 0
     
     fun initialize(context: Context, locationPermission: Boolean) {
         this.activityContext = context
@@ -68,33 +73,38 @@ class WeatherViewModel : ViewModel() {
         if (!hasLocationPermission) return
         isLoading.value = true
         error.value = null
-        
+
+        val id = nextRequestId++
+        currentRequestId = id
         locationRepository.getCurrentLocation { location ->
+            if (id != currentRequestId) return@getCurrentLocation
             if (location != null) {
                 currentLocation.value = location
                 
                 
                 locationRepository.getCityNameFromLocation(location) { cityNameFromLocation->
                     mainHandler.post {
+                        if (id != currentRequestId) return@post
                         cityName.value = cityNameFromLocation.orEmpty()
 
-                        getWeatherForLocation(location)
+                        getWeatherForLocation(location, id)
                     }
                 }
             } else {
                 isLoading.value = false
                 error.value = "Unable to get current location"
+                currentRequestId = null
             }
         }
     }
     
-    fun getWeatherForLocation(location: Location) {
+    fun getWeatherForLocation(location: Location, requestId: Int) {
         isLoading.value = true
         error.value = null
-        
+
         weatherRepository.getWeatherData(location) { data, exception ->
-            
             Handler(Looper.getMainLooper()).post {
+                if (requestId != currentRequestId) return@post
                 isLoading.value = false
                 
                 if (data != null) {
@@ -102,6 +112,7 @@ class WeatherViewModel : ViewModel() {
                 } else {
                     error.value = exception?.message ?: "Unknown error"
                 }
+                currentRequestId = null
             }
         }
     }
@@ -114,10 +125,11 @@ class WeatherViewModel : ViewModel() {
         
         isLoading.value = true
         error.value = null
-        
-        
+
+        val id = nextRequestId++
+        currentRequestId = id
         weatherRepository.getWeatherByCity(city) { data, exception ->
-            
+            if (id != currentRequestId) return@getWeatherByCity
             isLoading.value = false
             
             if (data != null) {
@@ -127,6 +139,7 @@ class WeatherViewModel : ViewModel() {
             } else {
                 error.value = exception?.message ?: "Unknown error"
             }
+            currentRequestId = null
         }
     }
     
@@ -149,8 +162,12 @@ class WeatherViewModel : ViewModel() {
         refreshTimer?.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
                 mainHandler.post {
-                    currentLocation.value?.let { location ->
-                        getWeatherForLocation(location)
+                    if (currentRequestId == null) {
+                        currentLocation.value?.let { location ->
+                            val id = nextRequestId++
+                            currentRequestId = id
+                            getWeatherForLocation(location, id)
+                        }
                     }
                 }
             }
