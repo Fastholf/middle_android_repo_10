@@ -101,8 +101,10 @@ fun DetailedWeatherCard(weather: WeatherData) {
                 item {
                     WeatherDataRow("Feels like", weather.feelsLike.toString() + "°C")
                 }
-                item {
-                    WeatherDataRow("Min/Max", "${weather.minTemp}°C / ${weather.maxTemp}°C")
+                if (weather.minTemp != null && weather.maxTemp != null) {
+                    item {
+                        WeatherDataRow("Min/Max", "${weather.minTemp}°C / ${weather.maxTemp}°C")
+                    }
                 }
                 item {
                     WeatherDataRow("Humidity", weather.humidity.toString() + "%")
