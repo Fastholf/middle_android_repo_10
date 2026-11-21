@@ -44,6 +44,11 @@ import java.util.TimerTask
  * Исправлено обновлением по координатам открытой карточки. Для геолокации добавлена отдельная кнопка.
  * 10. Типы LiveData не согласуются с тем, как они используются. Исправлено указание nullable там, где
  * LiveData используется как nullable
+ * 11. Задача в очереди Handler могла выполниться после остановки таймера. Теперь перед
+ * обновлением задача проверяет, что её таймер ещё активен. В onCleared() сбрасывается
+ * ID запроса, поэтому поздние ответы геокодера и сервера игнорируются.
+ * 12. scheduleAtFixedRate() мог запускать пропущенные тики подряд после паузы процесса.
+ * Используется schedule() с фиксированной задержкой между запусками.
  * */
 class WeatherViewModel(private val application: Application) : ViewModel() {
     private val weatherRepository = WeatherRepository()
@@ -74,9 +79,6 @@ class WeatherViewModel(private val application: Application) : ViewModel() {
         val shouldFetchLocation = locationPermission && !hasLocationPermission
         hasLocationPermission = locationPermission
         if (shouldFetchLocation) fetchCurrentLocationWeather()
-        
-        
-        if (refreshTimer == null) startAutoRefresh()
     }
     
     
@@ -177,12 +179,14 @@ class WeatherViewModel(private val application: Application) : ViewModel() {
     }
     
     
-    private fun startAutoRefresh() {
-        refreshTimer?.cancel()
-        refreshTimer = Timer()
-        refreshTimer?.scheduleAtFixedRate(object : TimerTask() {
+    fun startAutoRefresh() {
+        stopAutoRefresh()
+        val timer = Timer()
+        refreshTimer = timer
+        timer.schedule(object : TimerTask() {
             override fun run() {
                 mainHandler.post {
+                    if (refreshTimer !== timer) return@post
                     if (currentRequestId == null) {
                         currentLocation.value?.let { location ->
                             val id = nextRequestId++
@@ -193,6 +197,11 @@ class WeatherViewModel(private val application: Application) : ViewModel() {
                 }
             }
         }, 60000, 60000)
+    }
+
+    fun stopAutoRefresh() {
+        refreshTimer?.cancel()
+        refreshTimer = null
     }
     
     
@@ -205,6 +214,7 @@ class WeatherViewModel(private val application: Application) : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        refreshTimer?.cancel()
+        currentRequestId = null
+        stopAutoRefresh()
     }
 }

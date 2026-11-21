@@ -29,6 +29,8 @@ import ru.yandex.buggyweatherapp.viewmodel.WeatherViewModel
  * 2. ViewModel создавался на каждый экземпляр Activity. В результате при повороте экрана мы теряли
  * уже загруженные данные. Исправлено созданием ViewModel с помощью by viewModels(), сохраняя экземпляр
  * во ViewModel Store.
+ * 3. Таймер продолжал запускать запросы при свёрнутом приложении. Теперь автообновление
+ * запускается в onStart() и останавливается в onStop().
  * */
 class MainActivity : ComponentActivity() {
     
@@ -95,6 +97,16 @@ class MainActivity : ComponentActivity() {
     }
     
     
+    override fun onStart() {
+        super.onStart()
+        weatherViewModel.startAutoRefresh()
+    }
+
+    override fun onStop() {
+        weatherViewModel.stopAutoRefresh()
+        super.onStop()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         
