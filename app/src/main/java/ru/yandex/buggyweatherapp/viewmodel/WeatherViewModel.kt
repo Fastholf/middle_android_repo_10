@@ -1,6 +1,6 @@
 package ru.yandex.buggyweatherapp.viewmodel
 
-import android.content.Context
+import android.app.Application
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -10,7 +10,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import ru.yandex.buggyweatherapp.WeatherApplication
 import ru.yandex.buggyweatherapp.model.Location
 import ru.yandex.buggyweatherapp.model.WeatherData
 import ru.yandex.buggyweatherapp.repository.LocationRepository
@@ -33,16 +32,14 @@ import java.util.TimerTask
  * 5. cityName выставлялся до успешного запроса погоды. В результате могла возникнуть ситуация, когда 
  * мы запросили город, выставили его, запросили погоду, а её получить не удалось. Тогда город будет
  * новый, а погода от старого города. Исправлено выставлением имени города на успехе запроса погоды.
+ * 6. ViewModel сохранял Activity's Context. При этом пока ViewModel создавался прямо внутри Activity
+ * это не было большой проблемой. Но мы переделали это на хранение в ViewModel Store и Activity Context
+ * начал утекать. Исправлено использованием Application Context.
  * */
-class WeatherViewModel : ViewModel() {
-    
-    
-    private lateinit var activityContext: Context
-    
-    
+class WeatherViewModel(private val application: Application) : ViewModel() {
     private val weatherRepository = WeatherRepository()
     private val locationRepository by lazy { 
-        LocationRepository(activityContext)
+        LocationRepository(application)
     }
     
     
@@ -64,13 +61,13 @@ class WeatherViewModel : ViewModel() {
     private var currentRequestId: Int? = null
     private var nextRequestId = 0
     
-    fun initialize(context: Context, locationPermission: Boolean) {
-        this.activityContext = context
+    fun initialize(locationPermission: Boolean) {
+        val shouldFetchLocation = locationPermission && !hasLocationPermission
         hasLocationPermission = locationPermission
-        fetchCurrentLocationWeather()
+        if (shouldFetchLocation) fetchCurrentLocationWeather()
         
         
-        startAutoRefresh()
+        if (refreshTimer == null) startAutoRefresh()
     }
     
     
