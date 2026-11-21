@@ -168,10 +168,12 @@ fun WeatherCard(
                 style = MaterialTheme.typography.bodyLarge
             )
             
-            Text(
-                text = "Feels like: " + weather.feelsLike.toString() + "°C",
-                style = MaterialTheme.typography.bodyMedium
-            )
+            weather.feelsLike?.let { feelsLike ->
+                Text(
+                    text = "Feels like: ${feelsLike}°C",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
             
             Text(
                 text = "Description: " + weather.description.replaceFirstChar { it.uppercase() },
@@ -188,22 +190,23 @@ fun WeatherCard(
                 style = MaterialTheme.typography.bodyMedium
             )
             
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                
-                Text(
-                    text = "Sunrise: " + WeatherIconMapper.formatTimestamp(weather.sunriseTime, weather.timezone),
-                    style = MaterialTheme.typography.bodySmall
-                )
-                
-                Text(
-                    text = "Sunset: " + WeatherIconMapper.formatTimestamp(weather.sunsetTime, weather.timezone),
-                    style = MaterialTheme.typography.bodySmall
-                )
+            weather.timezone?.let { timezone ->
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Sunrise: " + WeatherIconMapper.formatTimestamp(weather.sunriseTime, timezone),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+
+                    Text(
+                        text = "Sunset: " + WeatherIconMapper.formatTimestamp(weather.sunsetTime, timezone),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
             
             Spacer(modifier = Modifier.height(16.dp))

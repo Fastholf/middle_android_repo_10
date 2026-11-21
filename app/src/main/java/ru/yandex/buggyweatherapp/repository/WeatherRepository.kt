@@ -17,6 +17,9 @@ import ru.yandex.buggyweatherapp.model.WeatherData
  * 2. "temp_min" и "temp_max" являются необязательными в протоколе. Код не учитывал этот нюанс и 
  * погода бы не отобразилась, если бы эти значения не пришли в ответе. Исправлено обработкой значений как
  * nullable и корректной обработкой их в UI.
+ * 3. Разбор ответа завершался ошибкой без feels_like или timezone, а также при явном
+ * JSON null в этих полях или в temp_min и temp_max. Такие значения сохраняются
+ * как null, чтобы карточка могла показать остальные данные.
  *  */
 class WeatherRepository {
     
@@ -86,13 +89,13 @@ class WeatherRepository {
         val clouds = json.getAsJsonObject("clouds")
 
         fun JsonObject.getOrNull(memberName: String): JsonElement? {
-            return if (has(memberName)) get(memberName) else null
+            return get(memberName)?.takeUnless { it.isJsonNull }
         }
         return WeatherData(
             cityName = json.get("name").asString,
             country = sys.get("country").asString,
             temperature = main.get("temp").asDouble,
-            feelsLike = main.get("feels_like").asDouble,
+            feelsLike = main.getOrNull("feels_like")?.asDouble,
             minTemp = main.getOrNull("temp_min")?.asDouble,
             maxTemp = main.getOrNull("temp_max")?.asDouble,
             humidity = main.get("humidity").asInt,
@@ -104,7 +107,7 @@ class WeatherRepository {
             cloudiness = clouds.get("all").asInt,
             sunriseTime = sys.get("sunrise").asLong,
             sunsetTime = sys.get("sunset").asLong,
-            timezone = json.get("timezone").asInt,
+            timezone = json.getOrNull("timezone")?.asInt,
             timestamp = json.get("dt").asLong,
             rawApiData = json.toString(),
             rain = if (json.has("rain") && json.getAsJsonObject("rain").has("1h")) 

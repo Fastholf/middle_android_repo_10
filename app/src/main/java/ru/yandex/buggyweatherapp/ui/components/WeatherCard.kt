@@ -98,8 +98,10 @@ fun DetailedWeatherCard(weather: WeatherData) {
             
             
             LazyColumn {
-                item {
-                    WeatherDataRow("Feels like", weather.feelsLike.toString() + "°C")
+                weather.feelsLike?.let { feelsLike ->
+                    item {
+                        WeatherDataRow("Feels like", "${feelsLike}°C")
+                    }
                 }
                 if (weather.minTemp != null && weather.maxTemp != null) {
                     item {
@@ -115,11 +117,13 @@ fun DetailedWeatherCard(weather: WeatherData) {
                 item {
                     WeatherDataRow("Wind", weather.windSpeed.toString() + " m/s")
                 }
-                item {
-                    WeatherDataRow("Sunrise", WeatherIconMapper.formatTimestamp(weather.sunriseTime, weather.timezone))
-                }
-                item {
-                    WeatherDataRow("Sunset", WeatherIconMapper.formatTimestamp(weather.sunsetTime, weather.timezone))
+                weather.timezone?.let { timezone ->
+                    item {
+                        WeatherDataRow("Sunrise", WeatherIconMapper.formatTimestamp(weather.sunriseTime, timezone))
+                    }
+                    item {
+                        WeatherDataRow("Sunset", WeatherIconMapper.formatTimestamp(weather.sunsetTime, timezone))
+                    }
                 }
             }
         }

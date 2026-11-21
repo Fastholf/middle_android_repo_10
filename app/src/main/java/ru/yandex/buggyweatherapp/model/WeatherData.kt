@@ -4,7 +4,7 @@ data class WeatherData(
     val cityName: String,
     val country: String,
     val temperature: Double,
-    val feelsLike: Double,
+    val feelsLike: Double?,
     val minTemp: Double?,
     val maxTemp: Double?,
     val humidity: Int,
@@ -18,7 +18,7 @@ data class WeatherData(
     val cloudiness: Int,
     val sunriseTime: Long,
     val sunsetTime: Long,
-    val timezone: Int,
+    val timezone: Int?,
     val timestamp: Long,
     val location: Location,
     
