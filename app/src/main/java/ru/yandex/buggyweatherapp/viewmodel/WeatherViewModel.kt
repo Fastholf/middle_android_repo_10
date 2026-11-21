@@ -19,6 +19,11 @@ import ru.yandex.buggyweatherapp.utils.ImageLoader
 import java.util.Timer
 import java.util.TimerTask
 
+/**
+ * Исправлено:
+ * 1. Операция из refreshTimer выполнялась на бэкграунд потоке и при этом пыталась записать в 
+ * LiveData, исправлено переносом операции на UI поток с помощью Handler.post()
+ * */
 class WeatherViewModel : ViewModel() {
     
     
@@ -39,7 +44,7 @@ class WeatherViewModel : ViewModel() {
     
     
     private val coroutineScope = CoroutineScope(Dispatchers.Main + Job())
-    
+    private val mainHandler = Handler(Looper.getMainLooper())
     
     private var refreshTimer: Timer? = null
     
@@ -133,8 +138,10 @@ class WeatherViewModel : ViewModel() {
         refreshTimer = Timer()
         refreshTimer?.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
-                currentLocation.value?.let { location ->
-                    getWeatherForLocation(location)
+                mainHandler.post {
+                    currentLocation.value?.let { location ->
+                        getWeatherForLocation(location)
+                    }
                 }
             }
         }, 60000, 60000)
