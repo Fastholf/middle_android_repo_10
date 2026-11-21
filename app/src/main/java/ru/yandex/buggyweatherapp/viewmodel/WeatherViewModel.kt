@@ -74,10 +74,13 @@ class WeatherViewModel : ViewModel() {
                 currentLocation.value = location
                 
                 
-                val cityNameFromLocation = locationRepository.getCityNameFromLocation(location)
-                cityName.value = cityNameFromLocation.orEmpty()
-                
-                getWeatherForLocation(location)
+                locationRepository.getCityNameFromLocation(location) { cityNameFromLocation->
+                    mainHandler.post {
+                        cityName.value = cityNameFromLocation.orEmpty()
+
+                        getWeatherForLocation(location)
+                    }
+                }
             } else {
                 isLoading.value = false
                 error.value = "Unable to get current location"

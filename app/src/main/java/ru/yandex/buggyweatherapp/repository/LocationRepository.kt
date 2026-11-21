@@ -13,11 +13,20 @@ import com.google.android.gms.location.Priority
 import ru.yandex.buggyweatherapp.model.Location
 import ru.yandex.buggyweatherapp.utils.LocationTracker
 import java.util.Locale
+import java.util.concurrent.Executors
 
+/** 
+ * Исправлено:
+ * 1. getCityNameFromLocation вызывался на UI потоке и вызывал потенциально блокирующую операцию
+ * Geocoder.getFromLocation() на нём. Исправлено переносом вызова на фоновый поток.
+ */
 class LocationRepository(
     
     private val context: Context
 ) {
+    companion object {
+        private val geocoderExecutor = Executors.newSingleThreadExecutor()
+    }
     
     private val fusedLocationClient: FusedLocationProviderClient = 
         LocationServices.getFusedLocationProviderClient(context)
@@ -94,29 +103,32 @@ class LocationRepository(
     }
     
     
-    fun getCityNameFromLocation(location: Location): String? {
-        try {
-            
-            val geocoder = Geocoder(context, Locale.getDefault())
-            
-            @Suppress("DEPRECATION")
-            val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
-            
-            return if (!addresses.isNullOrEmpty()) {
-                val address = addresses[0]
-                if (address.locality != null) {
-                    address.locality
-                } else if (address.subAdminArea != null) {
-                    address.subAdminArea
+    fun getCityNameFromLocation(location: Location, onResult: (String?) -> Unit) {
+        geocoderExecutor.execute {
+            val name = try {
+
+                val geocoder = Geocoder(context, Locale.getDefault())
+
+                @Suppress("DEPRECATION")
+                val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+
+                if (!addresses.isNullOrEmpty()) {
+                    val address = addresses[0]
+                    if (address.locality != null) {
+                        address.locality
+                    } else if (address.subAdminArea != null) {
+                        address.subAdminArea
+                    } else {
+                        address.adminArea
+                    }
                 } else {
-                    address.adminArea
+                    null
                 }
-            } else {
+            } catch (e: Exception) {
+                Log.e("LocationRepository", "Error getting city name", e)
                 null
             }
-        } catch (e: Exception) {
-            Log.e("LocationRepository", "Error getting city name", e)
-            return null
+            onResult(name)
         }
     }
     
