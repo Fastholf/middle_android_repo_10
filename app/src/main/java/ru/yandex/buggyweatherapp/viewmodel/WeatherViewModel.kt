@@ -23,6 +23,9 @@ import java.util.TimerTask
  * Исправлено:
  * 1. Операция из refreshTimer выполнялась на бэкграунд потоке и при этом пыталась записать в 
  * LiveData, исправлено переносом операции на UI поток с помощью Handler.post()
+ * 2. Запись напрямую String? в cityName: MutableLiveData<String>() могло привести к NPE в Compose.
+ * Исправлено записью пустой строки, вместо null - Compose в текущей реализации нормально обрабатывает
+ * пустую строку.
  * */
 class WeatherViewModel : ViewModel() {
     
@@ -72,7 +75,7 @@ class WeatherViewModel : ViewModel() {
                 
                 
                 val cityNameFromLocation = locationRepository.getCityNameFromLocation(location)
-                cityName.value = cityNameFromLocation
+                cityName.value = cityNameFromLocation.orEmpty()
                 
                 getWeatherForLocation(location)
             } else {
