@@ -38,6 +38,8 @@ import java.util.TimerTask
  * 7. Таймер автообновления продолжал работать после очистки ViewModel, поэтому при повторном 
  * открытии экрана могли работать два таймера. Исправлено отменой текущего таймера в onCleared() 
  * и перед созданием нового.
+ * 8. toggleFavorite() не приводил к публикации изменения для Compose. Потому что сам объект не менялся,
+ * менялось его изменяемоу содержимое. Исправлено изменение поля на val и публикацией копии объекта.
  * */
 class WeatherViewModel(private val application: Application) : ViewModel() {
     private val weatherRepository = WeatherRepository()
@@ -184,9 +186,7 @@ class WeatherViewModel(private val application: Application) : ViewModel() {
     
     fun toggleFavorite() {
         weatherData.value?.let {
-            it.isFavorite = !it.isFavorite
-            
-            weatherData.value = it
+            weatherData.value = it.copy(isFavorite = !it.isFavorite)
         }
     }
     
