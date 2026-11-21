@@ -52,6 +52,8 @@ import java.util.TimerTask
  * Используется schedule() с фиксированной задержкой между запусками.
  * 13. Экран мог напрямую менять состояние через MutableLiveData. Теперь он получает LiveData,
  * а запись в состояние и вызов метода с ID запроса остаются внутри ViewModel.
+ * 14. После неудачного запроса по GPS таймер мог переключить карточку на другую локацию.
+ * Автообновление и кнопка Refresh используют локацию последней успешно загруженной карточки.
  * */
 class WeatherViewModel(private val application: Application) : ViewModel() {
     private val weatherRepository = WeatherRepository()
@@ -61,7 +63,6 @@ class WeatherViewModel(private val application: Application) : ViewModel() {
     
     
     private val _weatherData = MutableLiveData<WeatherData?>()
-    private val currentLocation = MutableLiveData<Location?>()
     private val _isLoading = MutableLiveData<Boolean>()
     private val _error = MutableLiveData<String?>()
     private val _cityName = MutableLiveData<String>()
@@ -100,14 +101,10 @@ class WeatherViewModel(private val application: Application) : ViewModel() {
         locationRepository.getCurrentLocation { location ->
             if (id != currentRequestId) return@getCurrentLocation
             if (location != null) {
-                currentLocation.value = location
-                
-                
                 locationRepository.getCityNameFromLocation(location) { cityNameFromLocation->
                     mainHandler.post {
                         if (id != currentRequestId) return@post
                         val namedLocation = location.copy(name = cityNameFromLocation)
-                        currentLocation.value = namedLocation
                         getWeatherForLocation(namedLocation, id)
                     }
                 }
@@ -123,7 +120,6 @@ class WeatherViewModel(private val application: Application) : ViewModel() {
         val location = weatherData.value?.location ?: return
         val id = nextRequestId++
         currentRequestId = id
-        currentLocation.value = location
         getWeatherForLocation(location, id)
     }
 
@@ -163,7 +159,6 @@ class WeatherViewModel(private val application: Application) : ViewModel() {
             if (data != null) {
                 _weatherData.value = data
                 _cityName.value = data.cityName
-                currentLocation.value = data.location
             } else {
                 _error.value = exception?.message ?: "Unknown error"
             }
@@ -194,11 +189,7 @@ class WeatherViewModel(private val application: Application) : ViewModel() {
                 mainHandler.post {
                     if (refreshTimer !== timer) return@post
                     if (currentRequestId == null) {
-                        currentLocation.value?.let { location ->
-                            val id = nextRequestId++
-                            currentRequestId = id
-                            getWeatherForLocation(location, id)
-                        }
+                        refreshDisplayedWeather()
                     }
                 }
             }
