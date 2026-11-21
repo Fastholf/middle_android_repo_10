@@ -103,7 +103,8 @@ class WeatherRepository {
             rain = if (json.has("rain") && json.getAsJsonObject("rain").has("1h")) 
                     json.getAsJsonObject("rain").get("1h").asDouble else null,
             snow = if (json.has("snow") && json.getAsJsonObject("snow").has("1h"))
-                    json.getAsJsonObject("snow").get("1h").asDouble else null
+                    json.getAsJsonObject("snow").get("1h").asDouble else null,
+            location = location
         )
     }
     

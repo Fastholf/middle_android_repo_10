@@ -28,6 +28,11 @@ import java.util.TimerTask
  * пустую строку.
  * 3. Были возможны одновременные запросы, в результате чего результат более нового запроса мог быть
  * отменён запоздавшим результатом более старого. Исправлено введением айдишника для текущещего запроса.
+ * 4. Поиск по городу сохранял нулевые координаты для текущеё геолокации, хотя репозиторий парсил их из ответа.
+ * Исправлено добавлением локации в ответ от репозитория и выставлением корректной локации в обработчике.
+ * 5. cityName выставлялся до успешного запроса погоды. В результате могла возникнуть ситуация, когда 
+ * мы запросили город, выставили его, запросили погоду, а её получить не удалось. Тогда город будет
+ * новый, а погода от старого города. Исправлено выставлением имени города на успехе запроса погоды.
  * */
 class WeatherViewModel : ViewModel() {
     
@@ -85,9 +90,9 @@ class WeatherViewModel : ViewModel() {
                 locationRepository.getCityNameFromLocation(location) { cityNameFromLocation->
                     mainHandler.post {
                         if (id != currentRequestId) return@post
-                        cityName.value = cityNameFromLocation.orEmpty()
-
-                        getWeatherForLocation(location, id)
+                        val namedLocation = location.copy(name = cityNameFromLocation)
+                        currentLocation.value = namedLocation
+                        getWeatherForLocation(namedLocation, id)
                     }
                 }
             } else {
@@ -109,6 +114,7 @@ class WeatherViewModel : ViewModel() {
                 
                 if (data != null) {
                     weatherData.value = data
+                    cityName.value = location.name.orEmpty()
                 } else {
                     error.value = exception?.message ?: "Unknown error"
                 }
@@ -135,7 +141,7 @@ class WeatherViewModel : ViewModel() {
             if (data != null) {
                 weatherData.value = data
                 cityName.value = data.cityName
-                currentLocation.value = Location(0.0, 0.0, data.cityName)
+                currentLocation.value = data.location
             } else {
                 error.value = exception?.message ?: "Unknown error"
             }

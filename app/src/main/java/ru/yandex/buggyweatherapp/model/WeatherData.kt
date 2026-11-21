@@ -20,7 +20,7 @@ data class WeatherData(
     val sunsetTime: Long,
     val timezone: Int,
     val timestamp: Long,
-    
+    val location: Location,
     
     val rawApiData: String,
     
