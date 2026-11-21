@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
@@ -32,8 +33,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import ru.yandex.buggyweatherapp.R
 import ru.yandex.buggyweatherapp.model.WeatherData
 import ru.yandex.buggyweatherapp.utils.WeatherIconMapper
 import ru.yandex.buggyweatherapp.viewmodel.WeatherViewModel
@@ -59,6 +62,14 @@ fun WeatherScreen(viewModel: WeatherViewModel, modifier: Modifier = Modifier) {
             onValueChange = { searchText = it },
             label = { Text("Search city") },
             modifier = Modifier.fillMaxWidth(),
+            leadingIcon = {
+                IconButton(onClick = { viewModel.fetchCurrentLocationWeather() }) {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = stringResource(R.string.current_location)
+                    )
+                }
+            },
             trailingIcon = {
                 IconButton(onClick = { 
                     
@@ -94,7 +105,7 @@ fun WeatherScreen(viewModel: WeatherViewModel, modifier: Modifier = Modifier) {
                 weather = weather,
                 cityName = cityName,
                 onFavoriteClick = { viewModel.toggleFavorite() },
-                onRefreshClick = { viewModel.fetchCurrentLocationWeather() }
+                onRefreshClick = { viewModel.refreshDisplayedWeather() }
             )
         }
     }

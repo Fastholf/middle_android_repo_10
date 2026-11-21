@@ -40,6 +40,8 @@ import java.util.TimerTask
  * и перед созданием нового.
  * 8. toggleFavorite() не приводил к публикации изменения для Compose. Потому что сам объект не менялся,
  * менялось его изменяемоу содержимое. Исправлено изменение поля на val и публикацией копии объекта.
+ * 9. Ручное обновление запрашивало геолокацию и могло переключить карточку на другой город.
+ * Исправлено обновлением по координатам открытой карточки. Для геолокации добавлена отдельная кнопка.
  * */
 class WeatherViewModel(private val application: Application) : ViewModel() {
     private val weatherRepository = WeatherRepository()
@@ -105,6 +107,14 @@ class WeatherViewModel(private val application: Application) : ViewModel() {
         }
     }
     
+    fun refreshDisplayedWeather() {
+        val location = weatherData.value?.location ?: return
+        val id = nextRequestId++
+        currentRequestId = id
+        currentLocation.value = location
+        getWeatherForLocation(location, id)
+    }
+
     fun getWeatherForLocation(location: Location, requestId: Int) {
         isLoading.value = true
         error.value = null
